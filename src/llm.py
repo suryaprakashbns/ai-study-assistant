@@ -7,8 +7,16 @@ import os
 load_dotenv()
 import re
 
+import re
+
 def clean_response(text):
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    if "<think>" in text:
+        if "</think>" in text:
+            text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+        else:
+            # Model got stuck reasoning and never produced a real answer
+            return "I had trouble forming a complete response — please try asking again."
+    return text.strip()
 # 1. Create the LLM
 llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
