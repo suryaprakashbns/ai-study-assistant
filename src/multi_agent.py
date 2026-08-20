@@ -8,18 +8,19 @@ from typing import TypedDict, Literal
 from dotenv import load_dotenv
 import os
 
-
 load_dotenv()
+
 from src.llm import clean_response
+
 # ============================================
 # 1. SHARED LLM
 # ============================================
 llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
     model="qwen/qwen3.6-27b",
-    temperature=0.1,
-   
+    temperature=0.1
 )
+
 # ============================================
 # 2. TOOLS FOR EACH AGENT
 # ============================================
@@ -39,7 +40,8 @@ def explain_topic(topic: str) -> str:
     response = llm.invoke([
         HumanMessage(content=f"Explain {topic} clearly with examples. Be concise.")
     ])
-   return clean_response(response.content) 
+    return clean_response(response.content)
+
 @tool
 def create_quiz(topic: str) -> str:
     """Create a multiple choice quiz about any topic."""
@@ -50,7 +52,7 @@ Q1: [Question]
 A) B) C) D)
 Answer: [Letter]""")
     ])
-    return clean_response(response.content) 
+    return clean_response(response.content)
 
 # ============================================
 # 3. SPECIALIZED AGENTS
@@ -72,19 +74,18 @@ class AgentState(TypedDict):
 # ============================================
 def supervisor_node(state: AgentState) -> AgentState:
     user_message = state["messages"][-1].content.lower()
-    
+
     print(f"\nSUPERVISOR: Analyzing request: {user_message}")
-    
-    # Supervisor decides which agent to use
+
     if any(word in user_message for word in ["search", "news", "latest", "current", "find", "lookup"]):
         next_agent = "research"
     elif any(word in user_message for word in ["quiz", "test", "questions", "mcq", "practice"]):
         next_agent = "quiz"
     else:
         next_agent = "study"
-    
+
     print(f"SUPERVISOR: Routing to {next_agent} agent")
-    
+
     return {
         "messages": state["messages"],
         "next_agent": next_agent,
@@ -97,12 +98,12 @@ def supervisor_node(state: AgentState) -> AgentState:
 def research_node(state: AgentState) -> AgentState:
     print("RESEARCH AGENT: Searching the web...")
     user_input = state["messages"][-1].content
-    
+
     response = research_agent.invoke({
         "messages": [{"role": "user", "content": user_input}]
     })
-    
-    final = response["messages"][-1].content
+
+    final = clean_response(response["messages"][-1].content)
     return {
         "messages": state["messages"],
         "next_agent": state["next_agent"],
@@ -112,12 +113,12 @@ def research_node(state: AgentState) -> AgentState:
 def study_node(state: AgentState) -> AgentState:
     print("STUDY AGENT: Explaining topic...")
     user_input = state["messages"][-1].content
-    
+
     response = study_agent.invoke({
         "messages": [{"role": "user", "content": user_input}]
     })
-    
-    final = response["messages"][-1].content
+
+    final = clean_response(response["messages"][-1].content)
     return {
         "messages": state["messages"],
         "next_agent": state["next_agent"],
@@ -127,12 +128,12 @@ def study_node(state: AgentState) -> AgentState:
 def quiz_node(state: AgentState) -> AgentState:
     print("QUIZ AGENT: Creating quiz...")
     user_input = state["messages"][-1].content
-    
+
     response = quiz_agent.invoke({
         "messages": [{"role": "user", "content": user_input}]
     })
-    
-    final = response["messages"][-1].content
+
+    final = clean_response(response["messages"][-1].content)
     return {
         "messages": state["messages"],
         "next_agent": state["next_agent"],
@@ -150,13 +151,11 @@ def route_to_agent(state: AgentState) -> Literal["research", "study", "quiz"]:
 # ============================================
 workflow = StateGraph(AgentState)
 
-# Add nodes
 workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("research", research_node)
 workflow.add_node("study", study_node)
 workflow.add_node("quiz", quiz_node)
 
-# Add edges
 workflow.add_edge(START, "supervisor")
 workflow.add_conditional_edges(
     "supervisor",
@@ -171,7 +170,6 @@ workflow.add_edge("research", END)
 workflow.add_edge("study", END)
 workflow.add_edge("quiz", END)
 
-# Compile the graph
 multi_agent = workflow.compile()
 
 # ============================================
@@ -191,7 +189,7 @@ def run_multi_agent(user_input: str) -> str:
         })
 
         print(f"\nFINAL ANSWER: {result['final_answer'][:100]}")
-        return result["final_answer"]
+        return clean_response(result["final_answer"])
 
     except Exception as e:
         print(f"ERROR: {str(e)}")
