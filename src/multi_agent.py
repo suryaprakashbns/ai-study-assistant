@@ -7,6 +7,7 @@ from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from typing import TypedDict, Literal
 from dotenv import load_dotenv
 import os
+from src.llm import clean_response
 
 load_dotenv()
 
@@ -38,8 +39,7 @@ def explain_topic(topic: str) -> str:
     response = llm.invoke([
         HumanMessage(content=f"Explain {topic} clearly with examples. Be concise.")
     ])
-    return response.content
-
+     return clean_response(response.content) 
 @tool
 def create_quiz(topic: str) -> str:
     """Create a multiple choice quiz about any topic."""
@@ -50,7 +50,7 @@ Q1: [Question]
 A) B) C) D)
 Answer: [Letter]""")
     ])
-    return response.content
+     return clean_response(response.content) 
 
 # ============================================
 # 3. SPECIALIZED AGENTS
