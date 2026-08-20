@@ -5,7 +5,10 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
+import re
 
+def clean_response(text):
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 # 1. Create the LLM
 llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
@@ -31,4 +34,4 @@ def get_ai_response(chat_history, user_input):
         "chat_history": chat_history,
         "user_input": user_input
     })
-    return response.content
+    return clean_response(response.content)
