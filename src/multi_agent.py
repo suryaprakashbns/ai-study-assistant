@@ -39,7 +39,7 @@ def explain_topic(topic: str) -> str:
     response = llm.invoke([
         HumanMessage(content=f"Explain {topic} clearly with examples. Be concise.")
     ])
-     return clean_response(response.content) 
+    return clean_response(response.content) 
 @tool
 def create_quiz(topic: str) -> str:
     """Create a multiple choice quiz about any topic."""
