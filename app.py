@@ -1,11 +1,9 @@
-from src.agent import run_agent
-from src.multi_agent import run_multi_agent
-from src.rag import process_pdf, get_rag_response, summarize_pdf, generate_quiz
 import os
 import streamlit as st
 
 # Bridge Streamlit Cloud's Secrets manager into an environment variable.
-# Locally this does nothing — your .env still works as before.
+# This MUST run before any src/ imports, since those create the LLM client
+# at import time and read the key immediately.
 try:
     if "GROQ_API_KEY" in st.secrets:
         os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
@@ -14,6 +12,9 @@ except Exception:
 
 from langchain_core.messages import HumanMessage, AIMessage
 from src.llm import get_ai_response
+from src.rag import process_pdf, get_rag_response, summarize_pdf, generate_quiz
+from src.agent import run_agent
+from src.multi_agent import run_multi_agent
 
 def initialize_chat():
     if "chat_history" not in st.session_state:
