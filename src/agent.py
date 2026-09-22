@@ -7,12 +7,24 @@ import os
 
 load_dotenv()
 
-llm = ChatGroq(
+from src.llm import clean_response
+
+primary_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+fallback_model = "openai/gpt-oss-120b"
+
+primary_llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
-       model="qwen/qwen3.8-27b",
+    model=primary_model,
     temperature=0.1,
-    
+    max_tokens=1024,
 )
+fallback_llm = ChatGroq(
+    api_key=os.getenv("GROQ_API_KEY"),
+    model=fallback_model,
+    temperature=0.1,
+    max_tokens=1024,
+)
+llm = primary_llm.with_fallbacks([fallback_llm])
 
 search = DuckDuckGoSearchRun()
 
@@ -79,9 +91,9 @@ def run_agent(user_input: str) -> str:
         for msg in reversed(messages):
             if hasattr(msg, "content") and msg.content:
                 if not hasattr(msg, "tool_calls") or not msg.tool_calls:
-                    return msg.content
+                    return clean_response(msg.content)
 
-        return messages[-1].content
+        return clean_response(messages[-1].content)
 
     except Exception as e:
         print(f"ERROR: {str(e)}")

@@ -39,21 +39,27 @@ def handle_user_input():
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                if st.session_state.vector_store is not None:
-                    response = get_rag_response(
-                        st.session_state.vector_store,
-                        st.session_state.chat_history,
-                        user_input
-                    )
-                else:
-                    response = get_ai_response(
-                        st.session_state.chat_history,
-                        user_input
-                    )
-                st.markdown(response)
-
-        st.session_state.chat_history.append(HumanMessage(content=user_input))
-        st.session_state.chat_history.append(AIMessage(content=response))
+                try:
+                    if st.session_state.vector_store is not None:
+                        response = get_rag_response(
+                            st.session_state.vector_store,
+                            st.session_state.chat_history,
+                            user_input
+                        )
+                    else:
+                        response = get_ai_response(
+                            st.session_state.chat_history,
+                            user_input
+                        )
+                    st.markdown(response)
+                    st.session_state.chat_history.append(HumanMessage(content=user_input))
+                    st.session_state.chat_history.append(AIMessage(content=response))
+                except Exception as e:
+                    err = str(e)
+                    if "ratelimit" in err.lower() or "rate_limit" in err.lower() or "429" in err:
+                        st.warning("⏳ **Groq API rate limit reached (8,000 tokens/min free tier limit).**\n\nPlease wait 5–10 seconds and ask again, or clear chat history below.")
+                    else:
+                        st.error(f"⚠️ Error: {err}")
 
 # UI
 st.set_page_config(page_title="AI Study Assistant", page_icon="🎓", layout="wide")
@@ -68,9 +74,12 @@ with st.sidebar:
     if uploaded_file:
         if st.button("Process PDF"):
             with st.spinner("Reading and processing PDF..."):
-                st.session_state.vector_store = process_pdf(uploaded_file)
-                st.session_state.chat_history = []
-            st.success("PDF processed!")
+                try:
+                    st.session_state.vector_store = process_pdf(uploaded_file)
+                    st.session_state.chat_history = []
+                    st.success("PDF processed!")
+                except Exception as e:
+                    st.error(f"Failed to process PDF: {e}")
 
     # Show features only when PDF is loaded
     if st.session_state.get("vector_store"):
@@ -80,14 +89,21 @@ with st.sidebar:
         # Summarize button
         if st.button("📝 Summarize PDF"):
             with st.spinner("Generating summary..."):
-                summary = summarize_pdf(st.session_state.vector_store)
-                st.session_state.chat_history.append(
-                    HumanMessage(content="Please summarize this document.")
-                )
-                st.session_state.chat_history.append(
-                    AIMessage(content=summary)
-                )
-            st.rerun()
+                try:
+                    summary = summarize_pdf(st.session_state.vector_store)
+                    st.session_state.chat_history.append(
+                        HumanMessage(content="Please summarize this document.")
+                    )
+                    st.session_state.chat_history.append(
+                        AIMessage(content=summary)
+                    )
+                    st.rerun()
+                except Exception as e:
+                    err = str(e)
+                    if "ratelimit" in err.lower() or "rate_limit" in err.lower() or "429" in err:
+                        st.warning("⏳ Groq rate limit reached. Please wait ~10 seconds and try again.")
+                    else:
+                        st.error(f"Summary failed: {err}")
 
         st.divider()
 
@@ -96,16 +112,29 @@ with st.sidebar:
         num_questions = st.slider("Number of questions", 3, 10, 5)
         if st.button("Generate Quiz"):
             with st.spinner("Generating quiz..."):
-                quiz = generate_quiz(st.session_state.vector_store, num_questions)
-                st.session_state.chat_history.append(
-                    HumanMessage(content=f"Generate a quiz with {num_questions} questions.")
-                )
-                st.session_state.chat_history.append(
-                    AIMessage(content=quiz)
-                )
-            st.rerun()
+                try:
+                    quiz = generate_quiz(st.session_state.vector_store, num_questions)
+                    st.session_state.chat_history.append(
+                        HumanMessage(content=f"Generate a quiz with {num_questions} questions.")
+                    )
+                    st.session_state.chat_history.append(
+                        AIMessage(content=quiz)
+                    )
+                    st.rerun()
+                except Exception as e:
+                    err = str(e)
+                    if "ratelimit" in err.lower() or "rate_limit" in err.lower() or "429" in err:
+                        st.warning("⏳ Groq rate limit reached. Please wait ~10 seconds and try again.")
+                    else:
+                        st.error(f"Quiz generation failed: {err}")
     else:
         st.info("💬 Normal chat mode")
+
+    st.divider()
+    if st.button("🗑️ Clear Chat History"):
+        st.session_state.chat_history = []
+        st.rerun()
+
 st.divider()
 st.subheader("🤖 AI Agent Mode")
 st.caption("Agent can search web, explain topics, generate quizzes")
@@ -114,14 +143,22 @@ agent_input = st.text_input("Ask the agent anything...")
 if st.button("Run Agent"):
     if agent_input:
         with st.spinner("Agent thinking..."):
-            agent_response = run_agent(agent_input)
-        st.session_state.chat_history.append(
-                HumanMessage(content=agent_input)
-            )
-        st.session_state.chat_history.append(
-                AIMessage(content=agent_response)
-            )
-        st.rerun()     
+            try:
+                agent_response = run_agent(agent_input)
+                st.session_state.chat_history.append(
+                    HumanMessage(content=agent_input)
+                )
+                st.session_state.chat_history.append(
+                    AIMessage(content=agent_response)
+                )
+                st.rerun()
+            except Exception as e:
+                err = str(e)
+                if "ratelimit" in err.lower() or "rate_limit" in err.lower() or "429" in err:
+                    st.warning("⏳ Groq rate limit reached. Please wait ~10 seconds and try again.")
+                else:
+                    st.error(f"Agent error: {err}")
+
 st.divider()
 st.subheader("🤖 Multi-Agent System")
 st.caption("Supervisor routes your request to the right specialist agent")
@@ -130,15 +167,21 @@ multi_input = st.text_input("Ask the multi-agent system...")
 if st.button("Run Multi-Agent"):
     if multi_input:
         with st.spinner("Multi-agent system thinking..."):
-            multi_response = run_multi_agent(multi_input)
-        
-        st.session_state.chat_history.append(
-            HumanMessage(content=f"[Multi-Agent] {multi_input}")
-        )
-        st.session_state.chat_history.append(
-            AIMessage(content=multi_response)
-        )
-        st.rerun()        
+            try:
+                multi_response = run_multi_agent(multi_input)
+                st.session_state.chat_history.append(
+                    HumanMessage(content=f"[Multi-Agent] {multi_input}")
+                )
+                st.session_state.chat_history.append(
+                    AIMessage(content=multi_response)
+                )
+                st.rerun()
+            except Exception as e:
+                err = str(e)
+                if "ratelimit" in err.lower() or "rate_limit" in err.lower() or "429" in err:
+                    st.warning("⏳ Groq rate limit reached. Please wait ~10 seconds and try again.")
+                else:
+                    st.error(f"Multi-agent error: {err}")
 
 initialize_chat()
 display_chat_history()

@@ -4,7 +4,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import SystemMessage
-from src.llm import llm
+from src.llm import llm, clean_response
 import tempfile
 import os
 
@@ -56,12 +56,13 @@ CONTEXT:
 
     chain = prompt | llm
 
+    trimmed_history = chat_history[-6:] if len(chat_history) > 6 else chat_history
     response = chain.invoke({
-        "chat_history": chat_history,
+        "chat_history": trimmed_history,
         "user_input": user_input
     })
 
-    return response.content
+    return clean_response(response.content)
 
 def summarize_pdf(vector_store):
     # Get a broad sample of chunks from the document
@@ -87,7 +88,7 @@ DOCUMENT CONTENT:
 
     chain = prompt | llm
     response = chain.invoke({})
-    return response.content
+    return clean_response(response.content)
 
 
 def generate_quiz(vector_store, num_questions=5):
@@ -117,4 +118,4 @@ DOCUMENT CONTENT:
 
     chain = prompt | llm
     response = chain.invoke({})
-    return response.content
+    return clean_response(response.content)

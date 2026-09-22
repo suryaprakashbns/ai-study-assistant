@@ -13,13 +13,24 @@ load_dotenv()
 from src.llm import clean_response
 
 # ============================================
-# 1. SHARED LLM
+# 1. SHARED LLM WITH FALLBACK
 # ============================================
-llm = ChatGroq(
+primary_model = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+fallback_model = "openai/gpt-oss-120b"
+
+primary_llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
-    model="qwen/qwen3.8-27b",
-    temperature=0.1
+    model=primary_model,
+    temperature=0.1,
+    max_tokens=1024,
 )
+fallback_llm = ChatGroq(
+    api_key=os.getenv("GROQ_API_KEY"),
+    model=fallback_model,
+    temperature=0.1,
+    max_tokens=1024,
+)
+llm = primary_llm.with_fallbacks([fallback_llm])
 
 # ============================================
 # 2. TOOLS FOR EACH AGENT
