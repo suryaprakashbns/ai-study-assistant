@@ -20,7 +20,7 @@ def clean_response(text):
 # 1. Create the LLM
 llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
-    model="qwen/qwen3.6-27b",
+    model="qwen/qwen3.8-27b",
     temperature=0.1,
    
 )
